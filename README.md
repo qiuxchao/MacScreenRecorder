@@ -1,4 +1,4 @@
-# MacScreenRecorder
+# MacScreenRecorder（🛠️ 开发中）
 
 一个用 Swift 编写的简单而强大的 macOS 屏幕录制库，并提供稳定的 C-API 以便在 Rust 等其他语言中使用。
 
