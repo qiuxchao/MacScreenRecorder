@@ -32,6 +32,11 @@ public struct CRecorderOptions {
 public struct CDisplay {
     public var id: UInt32
     public var name: UnsafePointer<CChar>?
+    public var x: Double
+    public var y: Double
+    public var width: Double
+    public var height: Double
+    public var scale: Double
 }
 
 /// 暴露给Rust/C的麦克风信息
@@ -172,14 +177,53 @@ public func get_displays_list() -> OpaquePointer? {
         var cDisplay: CDisplay?
         #if canImport(ScreenCaptureKit)
         if #available(macOS 12.3, *), let scDisplay = item as? SCDisplay {
-            let name = "Display \(scDisplay.displayID) (\(scDisplay.width)x\(scDisplay.height))"
-            cDisplay = CDisplay(id: scDisplay.displayID, name: strdup(name))
+            let displayID = scDisplay.displayID
+            let frame = CGDisplayBounds(displayID)
+            let name = "Display \(displayID) (\(scDisplay.width)x\(scDisplay.height))"
+
+            var scale: Double = 1.0
+            if let mode = CGDisplayCopyDisplayMode(displayID) {
+                let pixelWidth = mode.pixelWidth
+                let width = mode.width
+                if width > 0 {
+                    scale = Double(pixelWidth) / Double(width)
+                }
+            }
+
+            cDisplay = CDisplay(
+                id: displayID,
+                name: strdup(name),
+                x: frame.origin.x,
+                y: frame.origin.y,
+                width: frame.size.width,
+                height: frame.size.height,
+                scale: scale
+            )
         }
         #endif
         
         if cDisplay == nil, let cgDisplayID = item as? CGDirectDisplayID {
-             let name = "Display \(cgDisplayID)"
-             cDisplay = CDisplay(id: cgDisplayID, name: strdup(name))
+            let frame = CGDisplayBounds(cgDisplayID)
+            let name = "Display \(cgDisplayID) (\(Int(frame.size.width))x\(Int(frame.size.height)))"
+            
+            var scale: Double = 1.0
+            if let mode = CGDisplayCopyDisplayMode(cgDisplayID) {
+                let pixelWidth = mode.pixelWidth
+                let width = mode.width
+                if width > 0 {
+                    scale = Double(pixelWidth) / Double(width)
+                }
+            }
+
+            cDisplay = CDisplay(
+                id: cgDisplayID,
+                name: strdup(name),
+                x: frame.origin.x,
+                y: frame.origin.y,
+                width: frame.size.width,
+                height: frame.size.height,
+                scale: scale
+            )
         }
         
         if let finalDisplay = cDisplay {
