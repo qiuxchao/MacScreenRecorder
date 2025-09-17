@@ -191,7 +191,7 @@ fn main() {
     // 告诉 cargo 在这个路径下寻找本地库
     // 请将此路径修改为你本地 MacScreenRecorder.framework 的父目录
     // 例如: "/path/to/your/project/build/Debug"
-    const FRAMEWORK_PATH: &str = "/Users/qiuxc/CompanyProject/Demos/MacScreenRecorder/build/Debug";
+    const FRAMEWORK_PATH: &str = "/path/to/your/project/build/Debug";
 
     println!("cargo:rustc-link-search=framework={}", FRAMEWORK_PATH);
     println!("cargo:rustc-link-lib=framework=MacScreenRecorder");
