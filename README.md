@@ -1,4 +1,4 @@
-# MacScreenRecorder
+# MacScreenRecorder（开发中 🛠️）
 
 一个用 Swift 编写的简单而强大的 macOS 屏幕录制库。
 
@@ -236,6 +236,11 @@ pub struct CRecorderOptions {
 pub struct CDisplay {
     pub id: u32,
     pub name: *const c_char,
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    pub scale: f64,
 }
 
 #[repr(C)]
