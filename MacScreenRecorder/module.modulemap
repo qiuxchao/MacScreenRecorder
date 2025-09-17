@@ -1,0 +1,4 @@
+module MacScreenRecorder_C {
+    header "MacScreenRecorder-Swift.h"
+    export *
+}

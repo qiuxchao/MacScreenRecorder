@@ -1,0 +1,69 @@
+# Xcode
+.DS_Store
+build/
+DerivedData/
+
+# User settings
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+# Logs
+*.log
+
+# Temporary files
+*.swp
+*.lock
+*.tmp
+*.orig
+*.DS_Store?
+
+# macOS system files
+.AppleDouble
+.LSOverride
+Icon?
+
+# Thumbnails
+._*
+
+# iCloud
+*.icloud
+
+# Swift Package Manager
+.build/
+Package.resolved
+
+# Carthage
+Carthage/Build/
+
+# CocoaPods
+Pods/
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output/
+
+# Archive files
+*.xcarchive
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Other IDEs
+.idea/
+*.iml
+*.hmap
+
+# Output files
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Simulator
+*.simstate
