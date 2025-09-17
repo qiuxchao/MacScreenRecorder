@@ -1,41 +1,44 @@
-# MacScreenRecorder（开发中 🛠️）
+# MacScreenRecorder
 
-一个用 Swift 编写的简单而强大的 macOS 屏幕录制库。
+一个用 Swift 编写的简单而强大的 macOS 屏幕录制库，并提供稳定的 C-API 以便在 Rust 等其他语言中使用。
 
-## 功能特性
+## 🌟 功能特性
 
-- 🎬 录制屏幕、摄像头、麦克风和系统音频。
-- 🚀 简单且现代化的 Swift API。
-- ⚙️ 在 macOS 12.3+ 上自动使用 `ScreenCaptureKit` 以获得最佳性能和功能。
-- 在旧版系统上回退到 `CGDisplayStream`。
-- 🎤 支持从麦克风捕获音频。
-- 🎧 支持捕获系统音频输出（仅限 macOS 12.3+）。
-- 📹 支持从摄像头捕获视频。
-- 델 基于代理（Delegate）的成功和失败事件回调。
-- 🛡 为摄像头和麦克风访问提供可靠的权限处理。
+- 🎬 **多源录制**: 录制屏幕、麦克风和系统音频。
+- 🚀 **代理模式 API**: 提供简单易用的 `RecorderDelegate` 协议来处理录制事件。
+- ⚙️ **智能后端**: 在 macOS 12.3+ 上自动使用 `ScreenCaptureKit` 以获得最佳性能，并为旧版系统回退到 `CGDisplayStream`。
+- 🦀 **Rust FFI**: 暴露了稳定的 C-API，可以轻松集成到 Rust 项目中。
+- 🎤 **音频捕获**: 支持从指定麦克风和系统输出捕获音频（系统音频需要 macOS 12.3+）。
+- 🛡 **权限辅助**: 提供静态方法来检查和请求屏幕录制及麦克风权限。
+- 💻 **设备枚举**: 提供静态方法来获取显示器和麦克风列表。
 
-## 环境要求
+## 📋 环境要求
 
-- Xcode 13 或更高版本。
-- Swift 5.5 或更高版本。
+- macOS 10.15 或更高版本
+- Xcode 13 或更高版本
+- Swift 5.5 或更高版本
 
-## 使用方法
+_注意：系统音频录制和 `ScreenCaptureKit` 后端需要 macOS 12.3 或更高版本。_
+
+## 🚀 使用方法 (Swift)
 
 这是一个如何使用 `MacScreenRecorder` 的基本示例。
 
-首先，请确保在你的应用的 `Info.plist` 文件中启用“屏幕录制”、“麦克风”和“摄像头”权限，并添加相应的描述：
+### 1. 配置 Info.plist
+
+首先，请确保在你的应用的 `Info.plist` 文件中添加“屏幕录制”和“麦克风”的权限描述：
 
 - `Privacy - Screen Recording Usage Description`
 - `Privacy - Microphone Usage Description`
-- `Privacy - Camera Usage Description`
 
-然后，你可以像这样使用 `Recorder` 类：
+### 2. 录制代码示例
+
+通过实现 `RecorderDelegate` 协议来接收录制完成或失败的事件。
 
 ```swift
 import Cocoa
 import AVFoundation
-// 确保导入 MacScreenRecorder 模块
-// import MacScreenRecorder
+import MacScreenRecorder
 
 class ViewController: NSViewController, RecorderDelegate {
 
@@ -44,6 +47,7 @@ class ViewController: NSViewController, RecorderDelegate {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        // 设置代理以接收回调
         recorder.delegate = self
     }
 
@@ -59,50 +63,60 @@ class ViewController: NSViewController, RecorderDelegate {
     }
 
     private func startRecording() {
+        // 检查权限
+        guard Recorder.hasScreenRecordingPermission else {
+            print("错误：没有屏幕录制权限。")
+            Recorder.requestScreenRecordingPermission()
+            return
+        }
+
         // 获取输出文件的 URL
         let downloadsURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
-        let outputURL = downloadsURL.appendingPathComponent("recording-\(Date()).mov")
+        let outputURL = downloadsURL.appendingPathComponent("recording-\(Date().timeIntervalSince1970).mov")
 
         do {
-            // 开始录制屏幕和麦克风
+            // 开始录制屏幕和默认麦克风
             try recorder.start(
                 outputURL: outputURL,
-                screen: true,
-                microphone: true,
-                systemAudio: true, // 仅在 macOS 12.3+ 上有效
-                camera: false
+                display: nil, // nil 表示主显示器
+                microphoneDevice: AVCaptureDevice.default(for: .audio),
+                systemAudio: true // 仅在 macOS 12.3+ 上有效
             )
-            print("Started recording to \(outputURL)")
+            print("录制已开始，输出到: \(outputURL)")
         } catch {
-            print("Failed to start recording: \(error)")
+            print("启动录制失败: \(error)")
             // 在你的应用中妥善处理错误
         }
     }
 
     private func stopRecording() {
         recorder.stop()
-        print("Stopping recording...")
+        print("正在停止录制...")
     }
 
     // MARK: - RecorderDelegate
 
     func recorder(_ recorder: Recorder, didFinishWritingFile fileURL: URL) {
-        print("Finished writing file to: \(fileURL)")
+        print("录制成功完成，文件已保存到: \(fileURL)")
         // 你现在可以打开文件、分享它等。
+        DispatchQueue.main.async {
+            self.isRecording = false
+            // 更新 UI
+        }
     }
 
     func recorder(_ recorder: Recorder, didFailWithError error: Error) {
-        print("Recording failed with error: \(error)")
+        print("录制失败，错误: \(error)")
         // 处理错误，例如向用户显示警报
         DispatchQueue.main.async {
             self.isRecording = false
-            // 更新 UI，例如按钮标题
+            // 更新 UI
         }
     }
 }
 ```
 
-## API 参考
+## 📚 API 参考 (Swift)
 
 ### `Recorder`
 
@@ -112,58 +126,47 @@ class ViewController: NSViewController, RecorderDelegate {
 
 - `delegate: RecorderDelegate?`: 用于接收录制事件的代理。
 
-**方法**
+**实例方法**
 
 - `init()`: 创建一个新的 `Recorder` 实例。
-- `start(outputURL: URL, screen: Bool, microphone: Bool, systemAudio: Bool, camera: Bool) throws`: 使用指定的配置开始新的录制。
+- `start(outputURL: URL, fileType: AVFileType, bitrate: Int, display: Any?, cropRect: CGRect?, frameRate: Int, showCursor: Bool, microphoneDevice: AVCaptureDevice?, systemAudio: Bool) throws`: 使用指定的配置开始新的录制。
   - `outputURL`: 录制的视频文件的目标 URL。
-  - `screen`: 是否录制主显示器。
-  - `microphone`: 是否从默认麦克风录制音频。
+  - `display`: 要录制的显示器。可以是 `SCDisplay` (macOS 12.3+) 或 `CGDirectDisplayID`。传 `nil` 则使用主显示器。
+  - `microphoneDevice`: 要录制的 `AVCaptureDevice` 麦克风实例。
   - `systemAudio`: 是否录制系统的音频输出。**需要 macOS 12.3 或更高版本。**
-  - `camera`: 是否从默认摄像头录制视频。
-- `stop()`: 停止当前的录制。结果将通过代理传递。
+- `stop()`: 停止当前的录制。结果将通过代理异步传递。
+
+**静态方法**
+
+- `hasScreenRecordingPermission: Bool`: 检查是否具有屏幕录制权限。
+- `requestScreenRecordingPermission()`: 请求屏幕录制权限。
+- `hasMicrophonePermission: Bool`: 检查是否具有麦克风权限。
+- `requestMicrophonePermission(completion: @escaping (Bool) -> Void)`: 请求麦克风权限。
+- `getDisplays() async -> [Any]`: 异步获取可用显示器列表。
+- `getMicrophones() -> [AVCaptureDevice]`: 获取可用麦克风列表。
 
 ### `RecorderDelegate`
 
 一个用于从 `Recorder` 接收反馈的协议。
 
-**方法**
-
 - `recorder(_ recorder: Recorder, didFinishWritingFile fileURL: URL)`: 当录制成功完成并且文件已保存时调用。
 - `recorder(_ recorder: Recorder, didFailWithError error: Error)`: 如果在录制过程中发生错误，则调用此方法。
 
-### `RecorderError`
+## 🦀 在 Rust 中使用
 
-一个表示可能发生的错误的枚举。
-
-- `.unsupportedOS`: 当前操作系统版本不受支持。
-- `.permissionDenied(String)`: 所需的权限（例如，麦克风或摄像头）被拒绝。
-- `.internalError(String)`: 发生内部错误，例如未找到显示器。
-
-## 注意事项
-
-- **系统音频录制**: 捕获系统音频仅在 macOS 12.3 及更高版本上可行，因为它依赖于 `ScreenCaptureKit` 框架。如果你尝试在旧版操作系统上启用它，该库将抛出错误。
-- **权限**: 你的应用程序必须具有屏幕录制、麦克风访问和摄像头访问的必要权限。如果未授予访问权限，该库将抛出 `permissionDenied` 错误。最佳实践是在你的应用的 `Info.plist` 文件中包含这些权限的使用说明。
-
-## 在 Rust 中使用
-
-`MacScreenRecorder` 框架通过一个稳定的 C-API 暴露了其核心功能，可以方便地在 Rust 或其他支持 C FFI 的语言中调用。
+`MacScreenRecorder` 框架通过一个稳定的 C-API 暴露了其核心功能。
 
 ### 1. 编译框架
 
-首先，你需要编译 Swift 项目以生成 `.framework` 文件。你可以使用 Xcode 或者通过命令行来完成。
-
-使用 `xcodebuild` 命令进行编译 (推荐):
+使用 `xcodebuild` 命令编译 Swift 项目以生成 `.framework` 文件。
 
 ```sh
-xcodebuild -scheme MacScreenRecorder -sdk macosx build
+xcodebuild -scheme MacScreenRecorder -sdk macosx build -configuration Release
 ```
 
-编译成功后，你可以在项目目录的 `build/Debug` 或 `build/Release` 文件夹下找到 `MacScreenRecorder.framework`。例如：`./build/Debug/MacScreenRecorder.framework`。
+编译成功后，你可以在项目目录的 `build/Release` 文件夹下找到 `MacScreenRecorder.framework`。
 
 ### 2. 设置 Rust 项目
-
-接下来，设置你的 Rust 项目以链接到这个框架。
 
 #### Cargo.toml
 
@@ -175,46 +178,44 @@ name = "recorder-test"
 version = "0.1.0"
 edition = "2021"
 
+[dependencies]
+libc = "0.2"
+
 [build-dependencies]
 cc = "1.0"
 ```
 
 #### build.rs
 
-在你的项目根目录下创建一个 `build.rs` 文件。这个脚本会告诉 `rustc` 如何找到并链接 `MacScreenRecorder.framework`。
+在你的项目根目录下创建一个 `build.rs` 文件，以链接 `MacScreenRecorder.framework`。
 
-**重要提示**: 请将 `FRAMEWORK_PATH` 修改为你本地 `MacScreenRecorder.framework` 所在的实际路径。
+**重要提示**: 设置环境变量 `MAC_SCREEN_RECORDER_FRAMEWORK_PATH` 指向框架所在的目录（例如 `/path/to/your/project/build/Release`）。
 
 ```rust
 // build.rs
-fn main() {
-    // 告诉 cargo 在这个路径下寻找本地库
-    // 请将此路径修改为你本地 MacScreenRecorder.framework 的父目录
-    // 例如: "/path/to/your/project/build/Debug"
-    const FRAMEWORK_PATH: &str = "/path/to/your/project/build/Debug";
+use std::env;
 
-    println!("cargo:rustc-link-search=framework={}", FRAMEWORK_PATH);
+fn main() {
+    let framework_path = env::var("MAC_SCREEN_RECORDER_FRAMEWORK_PATH")
+        .expect("环境变量 MAC_SCREEN_RECORDER_FRAMEWORK_PATH 未设置。");
+
+    println!("cargo:rustc-link-search=framework={}", framework_path);
     println!("cargo:rustc-link-lib=framework=MacScreenRecorder");
 }
 ```
 
 ### 3. Rust 代码示例
 
-现在你可以在 Rust 代码中声明并调用 C-API 了。
-
-#### 定义 C-API 接口
-
-首先，你需要定义从 `CBridge.swift` 导出的 C 结构体和函数。
+以下是在 Rust 中调用 C-API 的示例。
 
 ```rust
 // src/main.rs
 
-use std::ffi::{c_char, c_void, CStr};
+use std::ffi::{c_char, c_void, CStr, CString};
 use std::os::raw::c_int;
 
-// Opaque pointer for the recorder instance
+// 为 recorder 实例和 C 数组定义不透明指针
 type RecorderRef = *mut c_void;
-// Opaque pointer for C arrays
 type OpaqueArrayRef = *mut c_void;
 
 #[repr(C)]
@@ -246,35 +247,31 @@ pub struct CDisplay {
 #[repr(C)]
 #[derive(Debug)]
 pub struct CDisplayArray {
-    pub count: i32,
+    pub count: c_int,
     pub items: *mut CDisplay,
 }
 
 extern "C" {
-    // Recorder lifecycle
+    // Recorder 生命周期
     fn msr_recorder_create() -> RecorderRef;
     fn msr_recorder_destroy(recorder: RecorderRef);
 
-    // Recording control
+    // 录制控制
     fn msr_recorder_start(recorder: RecorderRef, options: *const CRecorderOptions) -> bool;
     fn msr_recorder_stop(recorder: RecorderRef);
 
-    // Permissions
+    // 权限
     fn msr_has_screen_recording_permission() -> bool;
     fn msr_request_screen_recording_permission();
+    fn msr_has_microphone_permission() -> bool;
+    fn msr_request_microphone_permission();
 
-    // Device lists
+    // 设备列表
     fn msr_get_displays_list() -> OpaqueArrayRef;
     fn msr_free_displays_list(displays: OpaqueArrayRef);
+    fn msr_get_microphones_list() -> OpaqueArrayRef;
+    fn msr_free_microphones_list(microphones: OpaqueArrayRef);
 }
-```
-
-#### 调用示例
-
-下面是一个简单的 `main` 函数，演示了如何检查权限、获取显示器列表并开始录制。
-
-```rust
-// src/main.rs (continued)
 
 fn main() {
     unsafe {
@@ -291,36 +288,29 @@ fn main() {
         }
         println!("已获取屏幕录制权限。");
 
-        // 2. 获取显示器列表
+        // 2. 获取并选择显示器
         let displays_ptr = msr_get_displays_list();
         if displays_ptr.is_null() {
             eprintln!("未能获取显示器列表。");
             return;
         }
-
         let display_array = *(displays_ptr as *const CDisplayArray);
-        println!("找到 {} 个显示器:", display_array.count);
-
-        let displays = std::slice::from_raw_parts(display_array.items, display_array.count as usize);
-        for display in displays {
-            let name_str = CStr::from_ptr(display.name).to_string_lossy();
-            println!("  - ID: {}, 名称: {}", display.id, name_str);
-        }
-
-        // 选择第一个显示器用于录制
-        let main_display_id = displays.first().map_or(0, |d| d.id);
-
-        // 释放显示器列表内存
+        let main_display_id = if display_array.count > 0 {
+            let first_display = *display_array.items;
+            first_display.id
+        } else {
+            0 // 回退到主显示器ID
+        };
         msr_free_displays_list(displays_ptr);
 
-        // 3. 创建和配置 Recorder
+        // 3. 创建 Recorder
         let recorder = msr_recorder_create();
         if recorder.is_null() {
             eprintln!("创建 recorder 失败。");
             return;
         }
 
-        let output_path = std::ffi::CString::new("./recording.mov").unwrap();
+        let output_path = CString::new("./recording.mov").unwrap();
         let options = CRecorderOptions {
             output_path: output_path.as_ptr(),
             frame_rate: 30,
@@ -328,27 +318,31 @@ fn main() {
             show_cursor: true,
             system_audio: true, // 仅在 macOS 12.3+ 有效
             display_id: main_display_id,
-            crop_x: 0,
-            crop_y: 0,
-            crop_width: 0,  // 0 表示不裁剪
-            crop_height: 0, // 0 表示不裁剪
-            microphone_id: std::ptr::null(), // 不录制麦克风
+            crop_x: 0, crop_y: 0, crop_width: 0, crop_height: 0,
+            microphone_id: std::ptr::null(), // 传 null 使用默认麦克风
         };
 
-        // 4. 开始录制
+        // 4. 开始和停止录制
         println!("开始录制... (持续 5 秒)");
         if msr_recorder_start(recorder, &options) {
             std::thread::sleep(std::time::Duration::from_secs(5));
-
-            // 5. 停止录制
             msr_recorder_stop(recorder);
             println!("录制结束。文件已保存到 ./recording.mov");
         } else {
             eprintln!("录制启动失败。");
         }
 
-        // 6. 销毁 Recorder
+        // 5. 销毁 Recorder
         msr_recorder_destroy(recorder);
     }
 }
 ```
+
+## ⚠️ 注意事项
+
+- **系统音频录制**: 捕获系统音频仅在 macOS 12.3 及更高版本上可行，因为它依赖于 `ScreenCaptureKit` 框架。
+- **权限**: 你的应用程序必须具有屏幕录制和麦克风访问的必要权限。请务必在 `Info.plist` 文件中包含使用说明。
+
+## 📄 许可证
+
+[MIT](LICENSE)
